@@ -1,0 +1,204 @@
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { Home } from "lucide-react";
+
+const formSchema = z.object({
+  name: z.string().min(3, "El nombre debe tener al menos 3 caracteres."),
+  type: z.string().min(3, "El tipo de recurso es requerido."),
+  status: z.enum(["Disponible", "Asignado"]),
+});
+
+export default function NewResourcePage() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: "",
+      type: "",
+      status: "Disponible",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/resources", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(values),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description: data.error || "Ocurrió un error al crear el recurso",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Recurso Creado",
+        description: `El recurso "${values.name}" ha sido guardado y replicado a todas las bases de datos.`,
+      });
+      router.push("/resources");
+      router.refresh();
+    } catch {
+      toast({
+        title: "Error",
+        description: "Ocurrió un error al crear el recurso",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl mx-auto">
+      <div className="flex items-center gap-4">
+        <Button
+          asChild
+          variant="outline"
+          size="icon"
+          className="shadow-md hover:shadow-lg transition-shadow"
+        >
+          <Link href="/dashboard">
+            <Home className="h-4 w-4" />
+            <span className="sr-only">Volver al Dashboard</span>
+          </Link>
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">
+            Crear Nuevo Recurso
+          </h1>
+          <p className="text-muted-foreground">
+            Añade una nueva unidad o equipo al sistema.
+          </p>
+        </div>
+      </div>
+
+      <Card className="shadow-lg">
+        <CardContent className="pt-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nombre del Recurso</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ej: Brigada de Rescate Bravo"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Identificador único para el recurso.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tipo de Recurso</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ej: Combate de Incendios"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Especialidad o capacidad del recurso.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado Inicial</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un estado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="Disponible">Disponible</SelectItem>
+                        <SelectItem value="Asignado">Asignado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => router.push("/resources")}
+                  disabled={isLoading}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading}
+                  className="shadow-md hover:shadow-lg transition-shadow"
+                >
+                  {isLoading ? "Creando..." : "Crear Recurso"}
+                </Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
